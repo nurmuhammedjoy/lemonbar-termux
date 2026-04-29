@@ -1,16 +1,16 @@
-# 🍋 Lemonbar for Termux
+# Lemonbar for Termux
 
 > Build and run **Lemonbar** on Termux with a ready-to-use configuration.
 
 ---
 
-## ✨ Preview
+## Preview
 
 ![Preview](Preview/preview.png)
 
 ---
 
-## 📁 Included Files
+## Included Files
 
 | File | Description |
 | --- | --- |
@@ -19,7 +19,7 @@
 
 ---
 
-## 🚀 Installation & Usage
+## Installation & Usage
 
 ### 1) Clone the repository
 ```bash
@@ -40,8 +40,3 @@ chmod +x lemonbar
 ```
 
 ---
-
-## ✅ Tips
-
-- Make sure Termux has required build tools installed.
-- Edit the `lemonbar` script to customize colors, fonts, and layout.
