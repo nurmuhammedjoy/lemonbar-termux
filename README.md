@@ -2,9 +2,8 @@
 
 Lemonbar build script for Termux, including a configuration.
 
-## Overview
-This repository provides the necessary scripts to build and run [Lemonbar](https://github.com/LemonBoy/bar) directly within a Termux environment on Android. 
-
+## Preview
+[Preview](Preview/preview.png)
 ## Files
 - `build`: The build script that handles the compilation and setup of Lemonbar in Termux.
 - `lemonbar`: A configuration/startup script for running Lemonbar.
