@@ -1,0 +1,177 @@
+#!/usr/bin/env bash
+#
+# This is not same as the preview image but mostly everything is the same.
+# All module taken from my old polybar script and I used chatGPT to improve my script.
+#
+set -o pipefail
+
+# Configuration
+BG="#1d2021"
+FG="#ebdbb2"
+SEP="#504945"
+C_RED="#fb4934"
+C_GREEN="#b8bb26"
+C_YELLOW="#fabd2f"
+C_BLUE="#83a598"
+C_PURPLE="#d3869b"
+C_AQUA="#8ec07c"
+C_ORANGE="#fe8019"
+C_GRAY="#928374"
+C_DK1="#3c3836"
+
+BAR_H=28
+FONT="JetBrainsMono Nerd Font:size=10"
+
+WEATHER_LOCATION="${WEATHER_LOCATION:-Dhaka}"
+DEBUG="${DEBUG:-0}"
+
+WIDTH=$(xrandr 2>/dev/null | awk '/current/ {print $8}')
+WIDTH=${WIDTH:-1920}
+
+SCREEN_W=$((WIDTH - 14))
+GEOM="${SCREEN_W}x${BAR_H}+7+7"
+RST_BAR_H=$((BAR_H + 7))
+
+debug_log() {
+    if [ "$DEBUG" -eq 1 ]; then
+        echo "[$(date '+%H:%M:%S')] $*" >&2
+    fi
+}
+
+cmd_exists() {
+    command -v "$1" &>/dev/null
+}
+
+if cmd_exists bspc; then
+    bspc config top_padding $RST_BAR_H
+fi
+
+sep() { printf "%%{F${SEP}} | %%{F-}"; }
+
+
+workspace() {
+  if ! cmd_exists bspc; then
+    debug_log "bspc not found, skipping workspace module"
+    return
+  fi
+  
+  bspc subscribe report 2>/dev/null | while read -r line; do
+    out="%{l}  "
+    IFS=':' read -ra parts <<< "${line#?}"
+    for part in "${parts[@]}"; do
+      s="${part:0:1}"
+      n="${part:1}"
+      case "$s" in
+        O) out+="%{B${C_YELLOW}}%{F${BG}} ${n} %{B-}%{F-}" ;;
+        o) out+="%{B${C_DK1}}%{F${FG}} ${n} %{B-}%{F-}" ;;
+        f) out+="%{F${C_GRAY}} ${n} %{F-}" ;;
+      esac
+    done
+    echo "W$out" > "$FIFO"
+  done
+}
+
+battery() {
+  read -r capacity status <<< "$(termux-battery-status | jq -r '.percentage, .status')"
+  
+  if [ "$status" = "CHARGING" ]; then
+      icon=""
+  elif [ "$capacity" -ge 90 ]; then icon=""
+  elif [ "$capacity" -ge 70 ]; then icon=""
+  elif [ "$capacity" -ge 50 ]; then icon=""
+  elif [ "$capacity" -ge 20 ]; then icon=""
+  else icon=""
+  fi
+
+  echo "B$icon $capacity%" > "$FIFO"
+}
+
+volume() {
+  vol=$(termux-volume | jq -r '.[] | select(.stream == "music") | .volume')
+  [ -z "$vol" ] && vol=0
+
+  if [ "$vol" -eq 0 ]; then icon=" "
+  elif [ "$vol" -le 30 ]; then icon=" "
+  else icon=" "
+  fi
+
+  echo "V$icon $vol%" > "$FIFO"
+}
+
+weather() {
+  raw=$(curl -s "wttr.in/${WEATHER_LOCATION}?format=%C|%t")
+  if [ -z "$raw" ]; then 
+    echo "T~ N/A" > "$FIFO"
+    return
+  fi
+
+  cond=$(echo "$raw" | cut -d'|' -f1 | tr '[:upper:]' '[:lower:]' | xargs)
+  temp=$(echo "$raw" | cut -d'|' -f2 | sed 's/+//;s/%//' | xargs)
+
+  case "$cond" in
+    *clear* | *sunny*) ICON="" ;;
+    *partly* | *few* | *overcast*) ICON="" ;;
+    *cloud* | *clouds*) ICON="" ;;
+    *rain* | *drizzle* | *shower*) ICON="" ;;
+    *thunder* | *storm*) ICON="" ;;
+    *snow* | *sleet*) ICON="" ;;
+    *mist* | *fog* | *haze*) ICON="󰖑" ;;
+    *) ICON="" ;;
+  esac
+
+  [ -z "$temp" ] && temp="--°C"
+  echo "T$ICON $temp" > "$FIFO"
+}
+
+clock() {
+  echo "C$(date '+%I:%M %p')" > "$FIFO"
+}
+
+
+sys_loop() {
+  while true; do
+    battery
+    volume
+    clock
+    sleep 1m
+  done
+}
+
+weather_loop() {
+  while true; do
+    weather
+    sleep 30m
+  done
+}
+
+
+FIFO="${TMPDIR:-/tmp}/bar_fifo_$$"
+mkfifo "$FIFO"
+trap 'rm -f "$FIFO"' EXIT
+
+exec 3<> "$FIFO"
+
+W_VAL="" C_VAL="--:-- --" B_VAL="-- --" V_VAL="-- --%" T_VAL="-- --°C"
+
+workspace &
+sys_loop &
+weather_loop &
+
+# The Event Loop
+while read -r line <&3; do
+  type="${line:0:1}"
+  val="${line:1}"
+
+  case "$type" in
+    W) W_VAL="$val" ;; # Workspace
+    C) C_VAL="$val" ;; # Clock
+    B) B_VAL="$val" ;; # Battery
+    V) V_VAL="$val" ;; # Volume
+    T) T_VAL="$val" ;; # Weather
+  esac
+
+  right="${V_VAL}$(sep)${B_VAL}$(sep)${T_VAL}"
+
+  printf "%s%%{c}%s%%{r}%s \n" "$W_VAL" "$C_VAL" "$right"
+
+done | lemonbar -g "$GEOM" -B "$BG" -F "$FG" -f "$FONT" -p

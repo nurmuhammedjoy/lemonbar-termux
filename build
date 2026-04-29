@@ -1,0 +1,37 @@
+#!/data/data/com.termux/files/usr/bin/bash
+
+set -e
+
+echo "[1/8] Updating packages..."
+pkg update -y && pkg upgrade -y
+
+echo "[2/8] Installing build tools..."
+pkg install -y build-essential clang pkg-config git
+
+echo "[3/8] Installing dependencies..."
+pkg install -y xorgproto libxcb libxft libx11
+
+echo "[4/8] Cloning lemonbar-xft..."
+if [ -d lemonbar-xft ]; then
+    rm -rf lemonbar-xft
+fi
+
+git clone https://github.com/drscream/lemonbar-xft.git
+
+echo "[5/8] Entering source directory..."
+cd lemonbar-xft
+
+echo "[6/8] Patching Makefile..."
+sed -i "s|/usr/include/freetype2|$PREFIX/include/freetype2|g" Makefile
+sed -i "s|PREFIX?=/usr|PREFIX?=$PREFIX|g" Makefile
+
+echo "[7/8] Building..."
+make CC=clang
+
+echo "[8/8] Installing..."
+make install
+
+echo
+echo "Done."
+echo "Run lemonbar with:"
+echo "lemonbar"
