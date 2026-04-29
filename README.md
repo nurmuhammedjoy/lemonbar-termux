@@ -1,13 +1,12 @@
-# lemonbar-termux
+
 
 Lemonbar build script for Termux, including a configuration.
 
 ## Preview
-[Preview](Preview/preview.png)
+![Preview](Preview/preview.png)
 ## Files
 - `build`: The build script that handles the compilation and setup of Lemonbar in Termux.
 - `lemonbar`: A configuration/startup script for running Lemonbar.
-- `Preview/`: Directory containing previews of the bar.
 
 ## Installation & Usage
 
